@@ -3,7 +3,7 @@ import os
 import cv2
 
 imgplace = "D:\\testimege\\"
-imglist = [["s1.jpg",2], ["s2.jpg",2]]
+imglist = [["s1.jpg",0], ["s2.jpg",0]]
 
 for i in imglist:
     path = imgplace + i[0]
