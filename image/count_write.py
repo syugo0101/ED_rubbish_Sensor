@@ -2,22 +2,16 @@
 import cv2
 import numpy as np
 
-# エリア番号ごとに白色範囲を切り替え可能
-white_ranges = [
-    ([0, 0, 200], [180, 30, 255]),  # 0: 標準
-    ([0, 0, 200], [190, 30, 255]),  # 1: 広め
-    ([0, 0, 220], [180, 20, 255])   # 2: 狭め（例）
-]
-
+# 画像を読み込み指定色領域のピクセル数カウント
 class CountWhiteArea:
-    def __init__(self, path, areanum=0):
+    def __init__(self, path,white_ranges):
         self.img = cv2.imread(path)
-        self.areanum = areanum
+        self.white_ranges = white_ranges
         if self.img is None:
             raise FileNotFoundError(f"画像が読み込めません: {path}")
 
     def get_white_area(self):
-        lower, upper = white_ranges[self.areanum]
+        lower, upper = self.white_ranges
         lower_white = np.array(lower)
         upper_white = np.array(upper)
         hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
