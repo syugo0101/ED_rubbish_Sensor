@@ -55,5 +55,5 @@ class Score:    #ピクセル数からスコアを算出(最大をmax_scoreと�
         if self.pixel <= self.area_threshold:
             return max_score
         else:
-            score = max_score * amount_of_change ** (-self.pixel/self.area_threshold)
+            score = round(max_score * amount_of_change ** (-self.pixel/self.area_threshold))
             return score
