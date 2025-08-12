@@ -1,0 +1,214 @@
+なるほど、やりたいことは
+
+1. **Python側（今のコード）でエリアごとのスコアを取得**
+2. **一度取得済みのエリアはそのセットでは再取得しない**
+3. **スコア履歴を最大10セット分まで保存**
+4. **履歴をHTMLで一覧表示・取得できるようにする**
+
+ですね。
+
+まずは全体の流れを整理して、そのあとHTMLとFlaskサンプルコードを提示します。
+
+---
+
+## 🔹 データ構造案
+
+* 1セット = 複数のエリア（`area_0`, `area_1`, ...）のスコア
+* 最大10セット保持（古いセットから削除）
+* メモリ上で保持、終了時はJSON保存（必要なら再起動後も読み込み可能に）
+
+例：
+
+```python
+history_data = [
+    {
+        "timestamp": "2025-08-12 12:34:56",
+        "scores": {
+            "area_0": 85,
+            "area_1": 90,
+            "area_2": 72
+        }
+    },
+    ...
+]
+```
+
+---
+
+## 🔹 Flaskでのサーバー構成
+
+* `/` → 最新セットのスコア一覧表示
+* `/history` → 全履歴（最大10セット分）表示
+* `/history.json` → JSON形式で履歴取得（外部アプリやJS用）
+
+---
+
+## 🔹 HTMLサンプル（templates/index.html）
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>スコア表示</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>最新セット スコア</h1>
+    <p>取得日時: {{ latest.timestamp }}</p>
+    <table>
+        <tr>
+            <th>エリア</th>
+            <th>スコア</th>
+        </tr>
+        {% for area, score in latest.scores.items() %}
+        <tr>
+            <td>{{ area }}</td>
+            <td>{{ score }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <p><a href="/history">履歴を見る</a></p>
+</body>
+</html>
+```
+
+---
+
+## 🔹 履歴ページ（templates/history.html）
+
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>スコア履歴</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>スコア履歴（最大10セット）</h1>
+    {% for set in history %}
+    <h2>{{ set.timestamp }}</h2>
+    <table>
+        <tr>
+            <th>エリア</th>
+            <th>スコア</th>
+        </tr>
+        {% for area, score in set.scores.items() %}
+        <tr>
+            <td>{{ area }}</td>
+            <td>{{ score }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+    <p><a href="/">最新に戻る</a></p>
+</body>
+</html>
+```
+
+---
+
+## 🔹 Flask連携サンプル（app.py）
+
+```python
+from flask import Flask, render_template, jsonify
+import datetime
+
+app = Flask(__name__)
+
+# 履歴（メモリ保持）
+history_data = []
+
+def add_score_set(scores):
+    global history_data
+    history_data.insert(0, {
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "scores": scores
+    })
+    if len(history_data) > 10:
+        history_data.pop()
+
+@app.route("/")
+def index():
+    if history_data:
+        latest = history_data[0]
+    else:
+        latest = {"timestamp": "データなし", "scores": {}}
+    return render_template("index.html", latest=latest)
+
+@app.route("/history")
+def history():
+    return render_template("history.html", history=history_data)
+
+@app.route("/history.json")
+def history_json():
+    return jsonify(history_data)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+```
+
+---
+
+## 🔹 QR監視コードへの統合イメージ
+
+1. **セット管理**
+
+   * エリア全て埋まったら `add_score_set()` を呼び出して新セット登録
+   * その後、次のセットに向けてエリア取得済みリストをクリア
+2. **取得済みエリア判定**
+
+   * `captured_areas`（set型）を使い、既に取得済みならスキップ
+
+---
+
+```python
+captured_areas = set()
+current_scores = {}
+ALL_AREAS = {"area_0", "area_1", "area_2"}  # 全エリア定義
+
+def process_area(area_key, path):
+    global captured_areas, current_scores
+    if area_key in captured_areas:
+        print(f"{area_key} は取得済みです、スキップ")
+        return
+    score = score_calculation.calculate_score(path, area_key, AREA_DATA_PATH)
+    current_scores[area_key] = score
+    captured_areas.add(area_key)
+    print(f"スコア登録: {area_key} = {score}")
+
+    # 全エリア揃ったら1セット確定
+    if captured_areas == ALL_AREAS:
+        add_score_set(current_scores)
+        print("1セット完了、履歴追加")
+        captured_areas.clear()
+        current_scores = {}
+```
+
+---
+
+こうすると
+
+* 未取得のエリアだけ処理
+* 全部揃ったら履歴に追加
+* FlaskでHTML閲覧＆JSON取得可能
+  になります。
+
+---
+
+もしこのあと**QRコード監視ループとFlaskサーバーを同時に動かす構成**も必要なら、スレッドやマルチプロセス化の例も作れますが、先にそっちも出しますか？
+同時動作にしないとブラウザからの閲覧と計測処理が並行できないので、その部分も重要です。
