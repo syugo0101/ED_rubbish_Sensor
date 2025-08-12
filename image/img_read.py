@@ -6,12 +6,13 @@ import count_write
 import score_cal
 
 # --- 定数・設定 ---
-IMG_PLACE = "D:\\testimege\\"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # このスクリプトのあるフォルダ
+IMG_PLACE = os.path.join(BASE_DIR, "images//")  # imagesフォルダ
 IMG_LIST = [
     ["s1.jpg", "area_0"],
     ["s2.jpg", "area_0"]
 ]
-AREA_DATA_PATH = "D:\\デスクトップ\\make\\ED\\ED_rubbish_Sensor\\image\\area_data.json"
+AREA_DATA_PATH = os.path.join(BASE_DIR, "area_data.json")  # JSONファイル
 
 # --- 関数 ---
 def load_area_data(json_path):
