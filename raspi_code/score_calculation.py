@@ -8,7 +8,7 @@ max_score = 10000
 amount_of_change = math.e
 
 
-class ScoreCalculator:
+class ScoreCalculator:  # スコア計算クラス
     def __init__(self, path, area ,area_path):
         self.path = path
         self.area = area
@@ -30,8 +30,8 @@ class ScoreCalculator:
         score = Score(white_area, area_threshold)
         return score.score()
 
-class CountWhiteArea:
-    def __init__(self, path,white_ranges):
+class CountWhiteArea:   #白色領域をカウント
+    def __init__(self, path, white_ranges):
         self.img = cv2.imread(path)
         self.white_ranges = white_ranges
         if self.img is None:
@@ -46,7 +46,7 @@ class CountWhiteArea:
         area = cv2.countNonZero(mask)
         return area
     
-class Score:
+class Score:    #ピクセル数からスコアを算出(最大をmax_scoreとしている)
     def __init__(self, pixel, area_threshold):
         self.pixel = pixel
         self.area_threshold = area_threshold

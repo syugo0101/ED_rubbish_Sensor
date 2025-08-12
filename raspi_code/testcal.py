@@ -1,6 +1,8 @@
 import os
 import score_calculation
 
+# スコア算出の流れを確認するための仮のもの
+
 # --- 定数・設定 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # このスクリプトのあるフォルダ
 IMG_PLACE = os.path.join(BASE_DIR, "testimages//")  # imagesフォルダ
