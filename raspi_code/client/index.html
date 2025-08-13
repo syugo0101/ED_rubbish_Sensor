@@ -8,16 +8,15 @@
 <body>
   <h1>スコア一覧 (Web Bluetooth)</h1>
   <button id="connectBtn">Bluetooth接続してスコア取得</button>
-  <button id="dummyBtn">ダミーデータ表示</button>
+    <button id="dummyBtn">ダミーデータ表示/非表示</button>
+    <div id="scoreTables" style="display: flex; gap: 32px;"></div>
 
   <div id="scoreTables"></div>
 
   <script>
     const dummyBtn = document.getElementById('dummyBtn');
-    const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
-    const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
-    const connectBtn = document.getElementById('connectBtn');
     const scoreTablesDiv = document.getElementById('scoreTables');
+    let dummyVisible = false;
 
     function formatTimestamp(ts) {
       const y = ts.slice(0,4);
@@ -147,7 +146,75 @@
           scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
         }
       ];
-      renderTables(dummyArr);
+        if (!dummyVisible) {
+          // ダミーデータを複数端末分の配列形式で用意
+          const dummyArr = [
+            {
+              device_id: 'raspi-001',
+              timestamp: '20250813_150230',
+              scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 }
+            },
+            {
+              device_id: 'raspi-001',
+              timestamp: '20250812_093000',
+              scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 }
+            },
+            {
+              device_id: 'raspi-002',
+              timestamp: '20250813_150230',
+              scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 }
+            },
+            {
+              device_id: 'raspi-002',
+              timestamp: '20250812_093000',
+              scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
+            }
+          ];
+          // device_idごとにグループ化
+          const grouped = {};
+          for (const entry of dummyArr) {
+            if (!grouped[entry.device_id]) grouped[entry.device_id] = [];
+            grouped[entry.device_id].push(entry);
+          }
+          scoreTablesDiv.innerHTML = '';
+          Object.entries(grouped).forEach(([device_id, entries]) => {
+            const table = document.createElement('table');
+            table.className = 'scoreTable';
+            table.style.marginRight = '32px';
+            table.innerHTML = `
+              <caption style="font-weight:bold;">${device_id}</caption>
+              <thead>
+                <tr>
+                  <th>日付</th>
+                  <th>エリア</th>
+                  <th>スコア</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            `;
+            const tbody = table.querySelector('tbody');
+            entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+            for (const entry of entries) {
+              let setTotal = 0;
+              for (const area in entry.scores) {
+                const score = Number(entry.scores[area]);
+                setTotal += score;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${formatTimestamp(entry.timestamp)}</td><td>${area}</td><td>${score.toFixed(2)}</td>`;
+                tbody.appendChild(tr);
+              }
+              const trTotal = document.createElement('tr');
+              trTotal.innerHTML = `<td>${formatTimestamp(entry.timestamp)}</td><td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
+              tbody.appendChild(trTotal);
+            }
+            scoreTablesDiv.appendChild(table);
+          });
+          dummyVisible = true;
+        } else {
+          // 非表示に戻す
+          scoreTablesDiv.innerHTML = '';
+          dummyVisible = false;
+        }
     });
   </script>
 </body>
