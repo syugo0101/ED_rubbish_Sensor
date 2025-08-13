@@ -8,10 +8,12 @@
 <body>
   <h1>スコア一覧 (Web Bluetooth)</h1>
   <button id="connectBtn">Bluetooth接続してスコア取得</button>
+  <button id="dummyBtn">ダミーデータ表示</button>
 
   <table id="scoreTable">
     <thead>
       <tr>
+        <th>日付</th>
         <th>エリア</th>
         <th>スコア</th>
       </tr>
@@ -28,6 +30,7 @@
   </table>
 
   <script>
+  const dummyBtn = document.getElementById('dummyBtn');
     const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
     const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
 
@@ -65,22 +68,17 @@
         for (const ts of sortedKeys) {
           const scores = scoreSets[ts];
 
-          const trHeader = document.createElement('tr');
-          trHeader.classList.add('timestamp-row');
-          trHeader.innerHTML = `<td colspan="2">${formatTimestamp(ts)}</td>`;
-          tbody.appendChild(trHeader);
-
           let setTotal = 0;
           for (const area in scores) {
             const score = Number(scores[area]);
             setTotal += score;
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${area}</td><td>${score.toFixed(2)}</td>`;
+            tr.innerHTML = `<td>${formatTimestamp(ts)}</td><td>${area}</td><td>${score.toFixed(2)}</td>`;
             tbody.appendChild(tr);
           }
 
           const trTotal = document.createElement('tr');
-          trTotal.innerHTML = `<td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
+          trTotal.innerHTML = `<td>${formatTimestamp(ts)}</td><td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
           tbody.appendChild(trTotal);
 
           grandTotal += setTotal;
@@ -118,6 +116,45 @@
         totalCell.textContent = '0';
       }
     });
+
+      // ダミーデータ表示ボタン
+      dummyBtn.addEventListener('click', async () => {
+        try {
+          const response = await fetch('dummy.json');
+          const scoreSets = await response.json();
+
+          // 最新セット順にソート
+          const sortedKeys = Object.keys(scoreSets).sort().reverse();
+
+          tbody.innerHTML = '';
+          let grandTotal = 0;
+
+          for (const ts of sortedKeys) {
+            const scores = scoreSets[ts];
+
+            let setTotal = 0;
+            for (const area in scores) {
+              const score = Number(scores[area]);
+              setTotal += score;
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${formatTimestamp(ts)}</td><td>${area}</td><td>${score.toFixed(2)}</td>`;
+              tbody.appendChild(tr);
+            }
+
+            const trTotal = document.createElement('tr');
+            trTotal.innerHTML = `<td>${formatTimestamp(ts)}</td><td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
+            tbody.appendChild(trTotal);
+
+            grandTotal += setTotal;
+          }
+
+          totalCell.textContent = grandTotal.toFixed(2);
+        } catch (err) {
+          console.error(err);
+          tbody.innerHTML = `<tr><td colspan="3">エラー: ${err.message}</td></tr>`;
+          totalCell.textContent = '0';
+        }
+      });
   </script>
 </body>
 </html>
