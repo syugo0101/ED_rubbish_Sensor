@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>スコア閲覧 (Web Bluetooth)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>スコア一覧 (Web Bluetooth)</h1>
+  <button id="connectBtn">Bluetooth接続してスコア取得</button>
+
+  <table id="scoreTable">
+    <thead>
+      <tr>
+        <th>エリア</th>
+        <th>スコア</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="2">ここにスコアが表示されます</td></tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>合計</th>
+        <th id="totalScore">0</th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <script>
+    const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+    const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
+
+    const connectBtn = document.getElementById('connectBtn');
+    const tbody = document.querySelector('#scoreTable tbody');
+    const totalCell = document.getElementById('totalScore');
+
+    function formatTimestamp(ts) {
+      // 例: 20250813_150230 → 2025/08/13 15:02:30
+      const y = ts.slice(0,4);
+      const m = ts.slice(4,6);
+      const d = ts.slice(6,8);
+      const h = ts.slice(9,11);
+      const min = ts.slice(11,13);
+      const s = ts.slice(13,15);
+      return `${y}/${m}/${d} ${h}:${min}:${s}`;
+    }
+
+    connectBtn.addEventListener('click', async () => {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [SERVICE_UUID] }]
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        const value = await characteristic.readValue();
+        const decoder = new TextDecoder('utf-8');
+        const jsonStr = decoder.decode(value);
+        const scoreSets = JSON.parse(jsonStr);
+
+        // 最新セット順にソート
+        const sortedKeys = Object.keys(scoreSets).sort().reverse();
+
+        tbody.innerHTML = '';
+        let grandTotal = 0;
+
+        for (const ts of sortedKeys) {
+          const scores = scoreSets[ts];
+
+          const trHeader = document.createElement('tr');
+          trHeader.classList.add('timestamp-row');
+          trHeader.innerHTML = `<td colspan="2">${formatTimestamp(ts)}</td>`;
+          tbody.appendChild(trHeader);
+
+          let setTotal = 0;
+          for (const area in scores) {
+            const score = Number(scores[area]);
+            setTotal += score;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${area}</td><td>${score.toFixed(2)}</td>`;
+            tbody.appendChild(tr);
+          }
+
+          const trTotal = document.createElement('tr');
+          trTotal.innerHTML = `<td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
+          tbody.appendChild(trTotal);
+
+          grandTotal += setTotal;
+        }
+
+        totalCell.textContent = grandTotal.toFixed(2);
+
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="2">エラー: ${err.message}</td></tr>`;
+        totalCell.textContent = '0';
+      }
+    });
+  </script>
+</body>
+</html>
