@@ -71,7 +71,7 @@ th {
   font-weight: bold;
 }
 
-tbody tr:nth-child(even) {
+tbody tr:nth-child(even):not(.total-row) {
   background-color: #f9fbfd;
 }
 
@@ -79,23 +79,18 @@ tbody tr:hover {
   background-color: #f1f9ff;
 }
 
-.timestamp-row {
-  background-color: #ddeaf7;
-  font-weight: bold;
-}
-
 /* セット間に余白 */
 tbody tr.set-gap td {
   padding-top: 6px;
 }
 
-/* セット合計用のスタイル */
+/* セット合計用 */
 tbody tr.total-row {
-  background-color: #fff3cd !important; /* 明るい黄色 */
+  background-color: #fff3cd !important;
   font-weight: bold;
 }
 
-/* 日付セルを左寄せ＆太字 */
+/* 日付セル */
 td.date-cell {
   font-weight: bold;
   color: #2c3e50;
