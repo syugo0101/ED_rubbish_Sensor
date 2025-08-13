@@ -1,4 +1,5 @@
 import cv2
+import threading
 import time
 from picamera2 import Picamera2
 import RPi.GPIO as GPIO
@@ -28,13 +29,33 @@ SCORE_DATA_PATH = os.path.join(BASE_DIR, "score_data.json")
 
 # ===== LED・ブザー通知 =====
 def notify_success():
-    for pin in LED_PINS:
-        GPIO.output(pin, GPIO.HIGH)
     GPIO.output(BUZZER_PIN, GPIO.HIGH)
     time.sleep(0.5)
     GPIO.output(BUZZER_PIN, GPIO.LOW)
-    for pin in LED_PINS:
-        GPIO.output(pin, GPIO.LOW)
+
+def notify_calculating():
+    GPIO.output(LED_PINS[2], GPIO.HIGH)
+    GPIO.output(BUZZER_PIN, GPIO.HIGH)
+    time.sleep(0.1)
+    GPIO.output(BUZZER_PIN, GPIO.LOW)
+    GPIO.output(LED_PINS[2], GPIO.LOW)
+
+# スコア計算中の点滅制御用
+calculating_flag = threading.Event()
+
+def calculating_blink_loop():
+    while calculating_flag.is_set():
+        notify_calculating()
+        time.sleep(0.2)  # 点滅間隔調整可
+
+def notify_high_score():
+    GPIO.output(LED_PINS[0], GPIO.HIGH)
+
+def notify_low_score():
+        GPIO.output(LED_PINS[2], GPIO.HIGH)
+
+def notify_middle_score():
+    GPIO.output(LED_PINS[1], GPIO.HIGH)
 
 # ===== Webカメラ撮影 =====
 def capture_from_webcam(save_dir="captures"):
@@ -82,6 +103,9 @@ def watch_qr():
                         time.sleep(0.1)
                         continue
 
+                    for pin in LED_PINS:
+                        GPIO.output(pin, GPIO.LOW)
+
                     print(f"QRコード検出: {area_key}")
 
                     picam2.stop()
@@ -94,7 +118,24 @@ def watch_qr():
                         continue
 
                     calscore = score_calculation.ScoreCalculator(path, area_key, AREA_DATA_PATH)
+                    # スコア計算中に点滅開始
+                    calculating_flag.set()
+                    blink_thread = threading.Thread(target=calculating_blink_loop)
+                    blink_thread.start()
+
                     score = calscore.calculate_score()
+
+                    # 計算終了後に点滅停止
+                    calculating_flag.clear()
+                    blink_thread.join()
+
+                    if score >= 7000:
+                        notify_high_score()
+                    elif score <= 3000:
+                        notify_low_score()
+                    else:
+                        notify_middle_score()
+
                     print(f"算出スコア: {score}")
                     print(f"画像保存先: {path}")
 
