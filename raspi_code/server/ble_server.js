@@ -26,7 +26,15 @@ class ScoreCharacteristic extends bleno.Characteristic {
         console.error('スコアファイル読み込み失敗:', err);
         return callback(this.RESULT_UNLIKELY_ERROR);
       }
-      const buffer = Buffer.from(data, 'utf8');
+      let sendData = data;
+      try {
+        // 配列形式で送信
+        const arr = JSON.parse(data);
+        sendData = JSON.stringify(arr);
+      } catch (e) {
+        // パース失敗時はそのまま
+      }
+      const buffer = Buffer.from(sendData, 'utf8');
       console.log('Read request received, sending score data');
       callback(this.RESULT_SUCCESS, buffer.slice(offset));
     });

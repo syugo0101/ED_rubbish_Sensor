@@ -7,6 +7,7 @@ from pyzbar.pyzbar import decode
 import os
 import score_calculation
 import json
+import socket
 
 # ===== GPIO設定 =====
 LED_PINS = [17, 27, 22]
@@ -86,6 +87,7 @@ def watch_qr():
 
     captured_areas = set()
     current_scores = {}
+    device_id = socket.gethostname()  # 端末IDとしてホスト名を利用
 
     last_detect_time = 0
     cooldown = 5  # 同じQRコードの再検知間隔(秒)
@@ -150,29 +152,40 @@ def watch_qr():
                     CAPTURE_DIR = "captures"
 
                     if captured_areas == ALL_AREAS:
-                        # 既存のスコアを読み込み
+                        # 既存のスコアを読み込み（配列形式）
                         if os.path.exists(SCORE_DATA_PATH):
                             with open(SCORE_DATA_PATH, "r", encoding="utf-8") as f:
                                 try:
                                     existing_scores = json.load(f)
+                                    if not isinstance(existing_scores, list):
+                                        existing_scores = []
                                 except json.JSONDecodeError:
-                                    existing_scores = {}
+                                    existing_scores = []
                         else:
-                            existing_scores = {}
+                            existing_scores = []
 
-                        # タイムスタンプ付きで保存
+                        # 新しいデータを追加
                         timestamp = time.strftime("%Y%m%d_%H%M%S")
-                        existing_scores[timestamp] = current_scores
+                        new_entry = {
+                            "device_id": device_id,
+                            "timestamp": timestamp,
+                            "scores": current_scores
+                        }
+                        existing_scores.append(new_entry)
 
-                        # 最大10セットまで保持
-                        sorted_keys = sorted(existing_scores.keys())
-                        while len(sorted_keys) > MAX_SET_COUNT:
-                            oldest = sorted_keys.pop(0)
-                            del existing_scores[oldest]
-
+                        # 最大10セットまで保持（各端末ごと）
+                        # device_idごとに最新10件のみ残す
+                        from collections import defaultdict
+                        grouped = defaultdict(list)
+                        for entry in existing_scores:
+                            grouped[entry["device_id"]].append(entry)
+                        trimmed = []
+                        for dev_id, entries in grouped.items():
+                            entries = sorted(entries, key=lambda x: x["timestamp"], reverse=True)[:MAX_SET_COUNT]
+                            trimmed.extend(entries)
                         # JSON書き込み
                         with open(SCORE_DATA_PATH, "w", encoding="utf-8") as f:
-                            json.dump(existing_scores, f, ensure_ascii=False, indent=2)
+                            json.dump(trimmed, f, ensure_ascii=False, indent=2)
 
                         # 画像の古いものを削除
                         os.makedirs(CAPTURE_DIR, exist_ok=True)
