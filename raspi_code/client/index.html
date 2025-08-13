@@ -12,149 +12,153 @@
   <div id="scoreTables"></div>
 
   <script>
-    const connectBtn = document.getElementById('connectBtn');
-    const dummyBtn = document.getElementById('dummyBtn');
-    const scoreTablesDiv = document.getElementById('scoreTables');
-    let dummyVisible = false;
+  const connectBtn = document.getElementById('connectBtn');
+  const dummyBtn = document.getElementById('dummyBtn');
+  const scoreTablesDiv = document.getElementById('scoreTables');
+  let dummyVisible = false;
 
-    const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
-    const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
+  const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+  const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
 
-    function formatTimestamp(ts) {
-      const y = ts.slice(0,4);
-      const m = ts.slice(4,6);
-      const d = ts.slice(6,8);
-      const h = ts.slice(9,11);
-      const min = ts.slice(11,13);
-      const s = ts.slice(13,15);
-      return `${y}/${m}/${d} ${h}:${min}:${s}`;
+  function formatTimestamp(ts) {
+    const y = ts.slice(0,4);
+    const m = ts.slice(4,6);
+    const d = ts.slice(6,8);
+    const h = ts.slice(9,11);
+    const min = ts.slice(11,13);
+    const s = ts.slice(13,15);
+    return `${y}/${m}/${d} ${h}:${min}:${s}`;
+  }
+
+  function renderTables(scoreArr) {
+    const grouped = {};
+    for (const entry of scoreArr) {
+      if (!grouped[entry.device_id]) grouped[entry.device_id] = [];
+      grouped[entry.device_id].push(entry);
     }
 
-    function renderTables(scoreArr) {
-      const grouped = {};
-      for (const entry of scoreArr) {
-        if (!grouped[entry.device_id]) grouped[entry.device_id] = [];
-        grouped[entry.device_id].push(entry);
-      }
+    scoreTablesDiv.innerHTML = '';
 
-      scoreTablesDiv.innerHTML = '';
+    Object.entries(grouped).forEach(([device_id, entries]) => {
+      const table = document.createElement('table');
+      table.innerHTML = `
+        <caption>${device_id}</caption>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>エリア</th>
+            <th>スコア</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector('tbody');
 
-      Object.entries(grouped).forEach(([device_id, entries]) => {
-        const table = document.createElement('table');
-        table.innerHTML = `
-          <caption>${device_id}</caption>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>エリア</th>
-              <th>スコア</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-        const tbody = table.querySelector('tbody');
+      entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
-        entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+      for (const entry of entries) {
+        let setTotal = 0;
+        let firstRow = true;
 
-        for (const entry of entries) {
-          let setTotal = 0;
-          let firstRow = true;
+        for (const area in entry.scores) {
+          const score = Number(entry.scores[area]);
+          setTotal += score;
+          const tr = document.createElement('tr');
+          tr.classList.add('set-gap');
 
-          for (const area in entry.scores) {
-            const score = Number(entry.scores[area]);
-            setTotal += score;
-            const tr = document.createElement('tr');
-            tr.classList.add('set-gap');
-
-            if (firstRow) {
-              tr.innerHTML = `<td class="date-cell">${formatTimestamp(entry.timestamp)}</td><td>${area}</td><td>${score.toFixed(2)}</td>`;
-              firstRow = false;
-            } else {
-              tr.innerHTML = `<td></td><td>${area}</td><td>${score.toFixed(2)}</td>`;
-            }
-            tbody.appendChild(tr);
+          if (firstRow) {
+            tr.innerHTML = `<td class="date-cell">${formatTimestamp(entry.timestamp)}</td><td>${area}</td><td>${score.toFixed(2)}</td>`;
+            firstRow = false;
+          } else {
+            tr.innerHTML = `<td></td><td>${area}</td><td>${score.toFixed(2)}</td>`;
           }
-
-          const trTotal = document.createElement('tr');
-          trTotal.classList.add('total-row');
-          trTotal.innerHTML = `<td></td><td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
-          tbody.appendChild(trTotal);
+          tbody.appendChild(tr);
         }
 
-        scoreTablesDiv.appendChild(table);
+        const trTotal = document.createElement('tr');
+        trTotal.classList.add('total-row');
+        trTotal.innerHTML = `<td></td><td>セット合計</td><td>${setTotal.toFixed(2)}</td>`;
+        tbody.appendChild(trTotal);
+      }
+
+      scoreTablesDiv.appendChild(table);
+    });
+  }
+
+  let updateIntervalId = null;
+  let characteristic = null;
+
+  async function fetchAndUpdateScores() {
+    try {
+      const value = await characteristic.readValue();
+      const decoder = new TextDecoder('utf-8');
+      const jsonStr = decoder.decode(value);
+      let scoreArr = [];
+      try {
+        scoreArr = JSON.parse(jsonStr);
+      } catch (e) {
+        console.error('JSON parse error', e);
+        scoreTablesDiv.innerHTML = `<div class="error">エラー: JSONデータの解析に失敗しました</div>`;
+        return;
+      }
+      renderTables(scoreArr);
+    } catch (err) {
+      console.error(err);
+      scoreTablesDiv.innerHTML = `<div class="error">エラー: ${err.message}</div>`;
+    }
+  }
+
+  connectBtn.addEventListener('click', async () => {
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID] }]
       });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+      await fetchAndUpdateScores();
+
+      if (updateIntervalId) clearInterval(updateIntervalId);
+      updateIntervalId = setInterval(fetchAndUpdateScores, 5000);
+    } catch (err) {
+      console.error(err);
+      scoreTablesDiv.innerHTML = `<div class="error">エラー: ${err.message}</div>`;
     }
+  });
 
-    let updateIntervalId = null;
-    let characteristic = null;
-
-    async function fetchAndUpdateScores() {
-      try {
-        const value = await characteristic.readValue();
-        const decoder = new TextDecoder('utf-8');
-        const jsonStr = decoder.decode(value);
-        let scoreArr = [];
-        try {
-          scoreArr = JSON.parse(jsonStr);
-        } catch (e) {
-          console.error('JSON parse error', e);
+  dummyBtn.addEventListener('click', () => {
+    if (!dummyVisible) {
+      const dummyArr = [
+        {
+          device_id: 'raspi-001',
+          timestamp: '20250813_150230',
+          scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 }
+        },
+        {
+          device_id: 'raspi-001',
+          timestamp: '20250812_093000',
+          scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 }
+        },
+        {
+          device_id: 'raspi-002',
+          timestamp: '20250813_150230',
+          scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 }
+        },
+        {
+          device_id: 'raspi-002',
+          timestamp: '20250812_093000',
+          scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
         }
-        renderTables(scoreArr);
-      } catch (err) {
-        console.error(err);
-      }
+      ];
+      renderTables(dummyArr);
+      dummyVisible = true;
+    } else {
+      scoreTablesDiv.innerHTML = '';
+      dummyVisible = false;
     }
-
-    connectBtn.addEventListener('click', async () => {
-      try {
-        const device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: [SERVICE_UUID] }]
-        });
-
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
-        await fetchAndUpdateScores();
-
-        if (updateIntervalId) clearInterval(updateIntervalId);
-        updateIntervalId = setInterval(fetchAndUpdateScores, 5000);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-
-    dummyBtn.addEventListener('click', () => {
-      if (!dummyVisible) {
-        const dummyArr = [
-          {
-            device_id: 'raspi-001',
-            timestamp: '20250813_150230',
-            scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 }
-          },
-          {
-            device_id: 'raspi-001',
-            timestamp: '20250812_093000',
-            scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 }
-          },
-          {
-            device_id: 'raspi-002',
-            timestamp: '20250813_150230',
-            scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 }
-          },
-          {
-            device_id: 'raspi-002',
-            timestamp: '20250812_093000',
-            scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
-          }
-        ];
-        renderTables(dummyArr);
-        dummyVisible = true;
-      } else {
-        scoreTablesDiv.innerHTML = '';
-        dummyVisible = false;
-      }
-    });
-  </script>
+  });
+</script>
 </body>
 </html>
