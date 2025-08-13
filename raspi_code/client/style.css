@@ -1,41 +1,103 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Arial, sans-serif;
   padding: 20px;
-  background-color: #f9f9f9;
+  background-color: #f4f7fa;
   color: #333;
+  line-height: 1.6;
 }
 
 h1 {
   margin-bottom: 20px;
+  font-size: 1.8em;
+  color: #2c3e50;
+  text-align: center;
+}
+
+button {
+  padding: 10px 18px;
+  margin-bottom: 20px;
+  margin-right: 10px;
+  font-size: 1em;
+  border: none;
+  border-radius: 6px;
+  background-color: #3498db;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+#scoreTables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: center;
 }
 
 table {
   border-collapse: collapse;
   width: 100%;
-  max-width: 600px;
-  margin-top: 20px;
+  max-width: 500px;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+caption {
+  background-color: #3498db;
+  color: white;
+  padding: 10px;
+  font-weight: bold;
+  font-size: 1.1em;
 }
 
 th, td {
-  border: 1px solid #ccc;
-  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+  padding: 10px 12px;
   text-align: center;
 }
 
 th {
-  background-color: #eee;
+  background-color: #ecf5fc;
+  font-weight: bold;
 }
 
 tbody tr:nth-child(even) {
-  background-color: #f5f5f5;
+  background-color: #f9fbfd;
 }
 
-button {
-  padding: 10px 15px;
-  margin-bottom: 20px;
+tbody tr:hover {
+  background-color: #f1f9ff;
 }
 
 .timestamp-row {
-  background-color: #ddd;
+  background-color: #ddeaf7;
   font-weight: bold;
+}
+
+/* セット間に余白 */
+tbody tr.set-gap td {
+  padding-top: 6px;
+}
+
+/* セット合計用のスタイル */
+tbody tr.total-row {
+  background-color: #fff3cd !important; /* 明るい黄色 */
+  font-weight: bold;
+}
+
+/* 日付セルを左寄せ＆太字 */
+td.date-cell {
+  font-weight: bold;
+  color: #2c3e50;
+  text-align: left;
 }
