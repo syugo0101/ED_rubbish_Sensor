@@ -30,7 +30,20 @@
   </table>
 
   <script>
-  const dummyBtn = document.getElementById('dummyBtn');
+    const dummyBtn = document.getElementById('dummyBtn');
+    // 組み込みダミーデータ
+    const dummyData = {
+      "20250813_150230": {
+        "Aエリア": 12.5,
+        "Bエリア": 8.3,
+        "Cエリア": 15.0
+      },
+      "20250812_093000": {
+        "Aエリア": 10.2,
+        "Bエリア": 7.8,
+        "Cエリア": 13.4
+      }
+    };
     const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
     const CHARACTERISTIC_UUID = 'abcdef01-1234-5678-1234-56789abcdef0';
 
@@ -120,9 +133,7 @@
       // ダミーデータ表示ボタン
       dummyBtn.addEventListener('click', async () => {
         try {
-          const response = await fetch('dummy.json');
-          const scoreSets = await response.json();
-
+          const scoreSets = dummyData;
           // 最新セット順にソート
           const sortedKeys = Object.keys(scoreSets).sort().reverse();
 
