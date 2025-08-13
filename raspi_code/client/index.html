@@ -46,16 +46,11 @@
       return `${y}/${m}/${d} ${h}:${min}:${s}`;
     }
 
-    connectBtn.addEventListener('click', async () => {
+    let updateIntervalId = null;
+    let characteristic = null;
+
+    async function fetchAndUpdateScores() {
       try {
-        const device = await navigator.bluetooth.requestDevice({
-          filters: [{ services: [SERVICE_UUID] }]
-        });
-
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
         const value = await characteristic.readValue();
         const decoder = new TextDecoder('utf-8');
         const jsonStr = decoder.decode(value);
@@ -92,6 +87,30 @@
         }
 
         totalCell.textContent = grandTotal.toFixed(2);
+
+      } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="2">エラー: ${err.message}</td></tr>`;
+        totalCell.textContent = '0';
+      }
+    }
+
+    connectBtn.addEventListener('click', async () => {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [SERVICE_UUID] }]
+        });
+
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        // 初回取得
+        await fetchAndUpdateScores();
+
+        // 5秒ごとに自動更新
+        if (updateIntervalId) clearInterval(updateIntervalId);
+        updateIntervalId = setInterval(fetchAndUpdateScores, 5000);
 
       } catch (err) {
         console.error(err);
