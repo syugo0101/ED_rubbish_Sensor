@@ -10,7 +10,7 @@
   <h1>スコアグラフ・CSV出力</h1>
   <div style="text-align:center; margin-bottom:20px;">
     <button id="backBtn">← 戻る</button>
-    <button id="toggleDummyBtn">ダミーデータ表示/非表示</button>
+    <button id="toggleDummyBtn">ダミーデータ表示</button>
   </div>
   <div style="margin-bottom:20px;">
     <input type="file" id="jsonFile" accept="application/json" style="display:none;">
@@ -22,19 +22,18 @@
   <script>
     let scoreArr = [];
     let dummyMode = false;
+    let chart = null;
     const backBtn = document.getElementById('backBtn');
     const toggleDummyBtn = document.getElementById('toggleDummyBtn');
-    const jsonFile = document.getElementById('jsonFile');
     const csvBtn = document.getElementById('csvBtn');
-    const ctx = document.getElementById('scoreChart').getContext('2d');
-    let chart = null;
+    let ctx = document.getElementById('scoreChart').getContext('2d');
 
     // 戻るボタン
     backBtn.addEventListener('click', () => {
       window.location.href = 'index.html';
     });
 
-    // ダミーデータトグル
+    // ダミーデータ切替
     toggleDummyBtn.addEventListener('click', () => {
       dummyMode = !dummyMode;
       if (dummyMode) {
@@ -42,12 +41,22 @@
         drawChart(scoreArr);
         toggleDummyBtn.textContent = 'ダミーデータ非表示';
       } else {
-        loadJsonFromIndex();
+        const jsonStr = localStorage.getItem('scoreArr');
+        if (jsonStr) {
+          scoreArr = JSON.parse(jsonStr);
+          if (scoreArr.length > 0) {
+            drawChart(scoreArr);
+          } else {
+            clearChart();
+          }
+        } else {
+          clearChart();
+        }
         toggleDummyBtn.textContent = 'ダミーデータ表示';
       }
     });
 
-    // CSV作成ボタン
+    // CSV作成
     csvBtn.addEventListener('click', () => {
       if (!scoreArr.length) {
         alert('データがありません');
@@ -63,46 +72,52 @@
       URL.revokeObjectURL(url);
     });
 
-    // index.htmlで生成されたjsonをlocalStorageから自動取得
+    // 初期表示（本データがあれば表示、なければ空にする）
     function loadJsonFromIndex() {
-      try {
-        const jsonStr = localStorage.getItem('scoreArr');
-        if (jsonStr) {
-          scoreArr = JSON.parse(jsonStr);
-          drawChart(scoreArr);
-        } else {
-          scoreArr = [];
-          drawChart(scoreArr);
+      const jsonStr = localStorage.getItem('scoreArr');
+      if (jsonStr) {
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            scoreArr = parsed;
+            dummyMode = false;
+            drawChart(scoreArr);
+            return;
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        scoreArr = [];
-        drawChart(scoreArr);
       }
+      // 本データなし
+      scoreArr = [];
+      dummyMode = false;
+      clearChart();
+    }
+
+    // グラフ削除
+    function clearChart() {
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
+      const oldCanvas = document.getElementById('scoreChart');
+      const parentDiv = oldCanvas.parentNode;
+      oldCanvas.remove();
+      const newCanvas = document.createElement('canvas');
+      newCanvas.id = 'scoreChart';
+      newCanvas.width = 600;
+      newCanvas.height = 400;
+      parentDiv.appendChild(newCanvas);
+      ctx = newCanvas.getContext('2d');
     }
 
     // ダミーデータ
     function getDummyData() {
       return [
-        {
-          device_id: 'raspi-001',
-          timestamp: '20250813_150230',
-          scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 }
-        },
-        {
-          device_id: 'raspi-001',
-          timestamp: '20250812_093000',
-          scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 }
-        },
-        {
-          device_id: 'raspi-002',
-          timestamp: '20250813_150230',
-          scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 }
-        },
-        {
-          device_id: 'raspi-002',
-          timestamp: '20250812_093000',
-          scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
-        }
+        { device_id: 'raspi-001', timestamp: '20250813_150230', scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 } },
+        { device_id: 'raspi-001', timestamp: '20250812_093000', scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 } },
+        { device_id: 'raspi-002', timestamp: '20250813_150230', scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 } },
+        { device_id: 'raspi-002', timestamp: '20250812_093000', scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 } }
       ];
     }
 
@@ -136,10 +151,7 @@
       if (chart) chart.destroy();
       chart = new Chart(ctx, {
         type: 'bar',
-        data: {
-          labels: devices,
-          datasets: datasets
-        },
+        data: { labels: devices, datasets: datasets },
         options: {
           responsive: false,
           plugins: {
@@ -150,9 +162,8 @@
       });
     }
 
-    // 初期表示
+    // 初期実行
     loadJsonFromIndex();
-    toggleDummyBtn.textContent = 'ダミーデータ表示';
   </script>
 </body>
 </html>
