@@ -78,7 +78,10 @@ def capture_from_webcam(save_dir="captures"):
 
 # ===== PiカメラでQRコード監視 =====
 def watch_qr():
-    ALL_AREAS = {"area_0", "area_1", "area_2"}  # 対象エリアセット（必要に応じて変更）
+    # area_data.jsonからエリア一覧を自動生成
+    with open(AREA_DATA_PATH, "r", encoding="utf-8") as f:
+        area_data = json.load(f)
+    ALL_AREAS = set(area_data.keys())
 
     picam2 = Picamera2()
     config = picam2.create_preview_configuration(main={"size": (640, 480)})
