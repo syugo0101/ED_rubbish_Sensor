@@ -6,7 +6,9 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+
   <h1>スコア一覧 (Web Bluetooth)</h1>
+  <button id="graphBtn" style="margin-bottom:10px;">グラフ・CSV出力ページへ</button>
   <button id="connectBtn">Bluetooth接続してスコア取得</button>
   <button id="dummyBtn">ダミーデータ表示/非表示</button>
   <div id="scoreTables"></div>
@@ -15,6 +17,11 @@
   const connectBtn = document.getElementById('connectBtn');
   const dummyBtn = document.getElementById('dummyBtn');
   const scoreTablesDiv = document.getElementById('scoreTables');
+  const graphBtn = document.getElementById('graphBtn');
+
+  graphBtn.addEventListener('click', () => {
+    window.location.href = 'graph.html';
+  });
   let dummyVisible = false;
 
   const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
@@ -38,6 +45,11 @@
     }
 
     scoreTablesDiv.innerHTML = '';
+
+    // graph.html用にlocalStorageへ保存
+    try {
+      localStorage.setItem('scoreArr', JSON.stringify(scoreArr));
+    } catch (e) {}
 
     Object.entries(grouped).forEach(([device_id, entries]) => {
       const table = document.createElement('table');

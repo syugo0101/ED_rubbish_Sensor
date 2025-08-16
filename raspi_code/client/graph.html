@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>スコアグラフ・CSV出力</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>スコアグラフ・CSV出力</h1>
+  <div style="text-align:center; margin-bottom:20px;">
+    <button id="backBtn">← 戻る</button>
+    <button id="toggleDummyBtn">ダミーデータ表示/非表示</button>
+  </div>
+  <div style="margin-bottom:20px;">
+    <input type="file" id="jsonFile" accept="application/json" style="display:none;">
+    <button id="csvBtn">CSVファイル作成</button>
+  </div>
+  <div>
+    <canvas id="scoreChart" width="600" height="400"></canvas>
+  </div>
+  <script>
+    let scoreArr = [];
+    let dummyMode = false;
+    const backBtn = document.getElementById('backBtn');
+    const toggleDummyBtn = document.getElementById('toggleDummyBtn');
+    const jsonFile = document.getElementById('jsonFile');
+    const csvBtn = document.getElementById('csvBtn');
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    let chart = null;
+
+    // 戻るボタン
+    backBtn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    // ダミーデータトグル
+    toggleDummyBtn.addEventListener('click', () => {
+      dummyMode = !dummyMode;
+      if (dummyMode) {
+        scoreArr = getDummyData();
+        drawChart(scoreArr);
+        toggleDummyBtn.textContent = 'ダミーデータ非表示';
+      } else {
+        loadJsonFromIndex();
+        toggleDummyBtn.textContent = 'ダミーデータ表示';
+      }
+    });
+
+    // CSV作成ボタン
+    csvBtn.addEventListener('click', () => {
+      if (!scoreArr.length) {
+        alert('データがありません');
+        return;
+      }
+      const csv = jsonToCsv(scoreArr);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'score_data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // index.htmlで生成されたjsonをlocalStorageから自動取得
+    function loadJsonFromIndex() {
+      try {
+        const jsonStr = localStorage.getItem('scoreArr');
+        if (jsonStr) {
+          scoreArr = JSON.parse(jsonStr);
+          drawChart(scoreArr);
+        } else {
+          scoreArr = [];
+          drawChart(scoreArr);
+        }
+      } catch (err) {
+        scoreArr = [];
+        drawChart(scoreArr);
+      }
+    }
+
+    // ダミーデータ
+    function getDummyData() {
+      return [
+        {
+          device_id: 'raspi-001',
+          timestamp: '20250813_150230',
+          scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 }
+        },
+        {
+          device_id: 'raspi-001',
+          timestamp: '20250812_093000',
+          scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 }
+        },
+        {
+          device_id: 'raspi-002',
+          timestamp: '20250813_150230',
+          scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 }
+        },
+        {
+          device_id: 'raspi-002',
+          timestamp: '20250812_093000',
+          scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 }
+        }
+      ];
+    }
+
+    // CSV変換
+    function jsonToCsv(arr) {
+      let rows = ['device_id,timestamp,area,score'];
+      arr.forEach(entry => {
+        Object.entries(entry.scores).forEach(([area, score]) => {
+          rows.push(`${entry.device_id},${entry.timestamp},${area},${score}`);
+        });
+      });
+      return rows.join('\n');
+    }
+
+    // グラフ描画
+    function drawChart(arr) {
+      const deviceAreaScores = {};
+      arr.forEach(entry => {
+        if (!deviceAreaScores[entry.device_id]) deviceAreaScores[entry.device_id] = {};
+        Object.entries(entry.scores).forEach(([area, score]) => {
+          if (!deviceAreaScores[entry.device_id][area]) deviceAreaScores[entry.device_id][area] = 0;
+          deviceAreaScores[entry.device_id][area] += Number(score);
+        });
+      });
+      const devices = Object.keys(deviceAreaScores);
+      const areas = Array.from(new Set(arr.flatMap(e => Object.keys(e.scores))));
+      const datasets = areas.map(area => ({
+        label: area,
+        data: devices.map(dev => deviceAreaScores[dev][area] || 0),
+      }));
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: devices,
+          datasets: datasets
+        },
+        options: {
+          responsive: false,
+          plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: 'デバイスごとのエリア別合計スコア' }
+          }
+        }
+      });
+    }
+
+    // 初期表示
+    loadJsonFromIndex();
+    toggleDummyBtn.textContent = 'ダミーデータ表示';
+  </script>
+</body>
+</html>
