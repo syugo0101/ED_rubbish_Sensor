@@ -8,12 +8,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
+
   <h1>スコアグラフ・CSV出力</h1>
 
   <div class="button-bar">
     <button id="backBtn" class="btn">← 戻る</button>
     <button id="toggleDummyBtn" class="btn">ダミーデータ表示</button>
     <button id="csvBtn" class="btn">CSVファイル作成</button>
+    <select id="chartType" class="btn" style="margin-left:10px;">
+      <option value="area_sum">エリア別合計</option>
+      <option value="set_sum">セット別合計</option>
+      <option value="area_trend">エリア別推移</option>
+      <option value="device_set_trend">デバイスごとセット合計推移</option>
+    </select>
   </div>
 
   <div class="chart-container">
@@ -21,13 +28,14 @@
   </div>
 
   <script>
-    let scoreArr = [];
-    let dummyMode = false;
-    let chart = null;
+  let scoreArr = [];
+  let dummyMode = false;
+  let chart = null;
 
-    const backBtn = document.getElementById('backBtn');
-    const toggleDummyBtn = document.getElementById('toggleDummyBtn');
-    const csvBtn = document.getElementById('csvBtn');
+  const backBtn = document.getElementById('backBtn');
+  const toggleDummyBtn = document.getElementById('toggleDummyBtn');
+  const csvBtn = document.getElementById('csvBtn');
+  const chartType = document.getElementById('chartType');
 
     // 戻るボタン
     backBtn.addEventListener('click', () => {
@@ -144,8 +152,23 @@
       return [
         { device_id: 'raspi-001', timestamp: '20250813_150230', scores: { 'Aエリア': 12.5, 'Bエリア': 8.3, 'Cエリア': 15.0 } },
         { device_id: 'raspi-001', timestamp: '20250812_093000', scores: { 'Aエリア': 10.2, 'Bエリア': 7.8, 'Cエリア': 13.4 } },
+        { device_id: 'raspi-001', timestamp: '20250811_101500', scores: { 'Aエリア': 11.8, 'Bエリア': 9.1, 'Cエリア': 14.2 } },
+        { device_id: 'raspi-001', timestamp: '20250810_084500', scores: { 'Aエリア': 13.0, 'Bエリア': 8.7, 'Cエリア': 15.5 } },
+
         { device_id: 'raspi-002', timestamp: '20250813_150230', scores: { 'Aエリア': 9.1, 'Bエリア': 6.5, 'Cエリア': 11.0 } },
-        { device_id: 'raspi-002', timestamp: '20250812_093000', scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 } }
+        { device_id: 'raspi-002', timestamp: '20250812_093000', scores: { 'Aエリア': 8.0, 'Bエリア': 5.8, 'Cエリア': 10.4 } },
+        { device_id: 'raspi-002', timestamp: '20250811_101500', scores: { 'Aエリア': 10.5, 'Bエリア': 7.2, 'Cエリア': 12.3 } },
+        { device_id: 'raspi-002', timestamp: '20250810_084500', scores: { 'Aエリア': 9.8, 'Bエリア': 6.9, 'Cエリア': 11.7 } },
+
+        { device_id: 'raspi-003', timestamp: '20250813_150230', scores: { 'Aエリア': 14.2, 'Bエリア': 10.1, 'Cエリア': 16.3 } },
+        { device_id: 'raspi-003', timestamp: '20250812_093000', scores: { 'Aエリア': 13.0, 'Bエリア': 9.5, 'Cエリア': 15.8 } },
+        { device_id: 'raspi-003', timestamp: '20250811_101500', scores: { 'Aエリア': 12.7, 'Bエリア': 10.3, 'Cエリア': 16.0 } },
+        { device_id: 'raspi-003', timestamp: '20250810_084500', scores: { 'Aエリア': 13.5, 'Bエリア': 9.8, 'Cエリア': 15.9 } },
+
+        { device_id: 'raspi-004', timestamp: '20250813_150230', scores: { 'Aエリア': 7.9, 'Bエリア': 5.2, 'Cエリア': 9.4 } },
+        { device_id: 'raspi-004', timestamp: '20250812_093000', scores: { 'Aエリア': 8.3, 'Bエリア': 6.1, 'Cエリア': 10.2 } },
+        { device_id: 'raspi-004', timestamp: '20250811_101500', scores: { 'Aエリア': 7.5, 'Bエリア': 5.7, 'Cエリア': 9.8 } },
+        { device_id: 'raspi-004', timestamp: '20250810_084500', scores: { 'Aエリア': 8.0, 'Bエリア': 6.3, 'Cエリア': 10.5 } }
       ];
     }
 
@@ -167,39 +190,114 @@
         clearChart();
         return;
       }
-
       const ctx = document.getElementById('scoreChart').getContext('2d');
-      const deviceAreaScores = {};
-      arr.forEach(entry => {
-        if (!deviceAreaScores[entry.device_id]) deviceAreaScores[entry.device_id] = {};
-        Object.entries(entry.scores).forEach(([area, score]) => {
-          if (!deviceAreaScores[entry.device_id][area]) deviceAreaScores[entry.device_id][area] = 0;
-          deviceAreaScores[entry.device_id][area] += Number(score);
+      const type = chartType.value;
+      let chartConfig = {};
+
+      if (type === 'area_sum') {
+        // デバイスごとのエリア別合計
+        const deviceAreaScores = {};
+        arr.forEach(entry => {
+          if (!deviceAreaScores[entry.device_id]) deviceAreaScores[entry.device_id] = {};
+          Object.entries(entry.scores).forEach(([area, score]) => {
+            if (!deviceAreaScores[entry.device_id][area]) deviceAreaScores[entry.device_id][area] = 0;
+            deviceAreaScores[entry.device_id][area] += Number(score);
+          });
         });
-      });
-
-      const devices = Object.keys(deviceAreaScores);
-      const areas = Array.from(new Set(arr.flatMap(e => Object.keys(e.scores))));
-
-      const datasets = areas.map((area, idx) => ({
-        label: area,
-        data: devices.map(dev => deviceAreaScores[dev][area] || 0),
-        backgroundColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`
-      }));
+        const devices = Object.keys(deviceAreaScores);
+        const areas = Array.from(new Set(arr.flatMap(e => Object.keys(e.scores))));
+        const datasets = areas.map((area, idx) => ({
+          label: area,
+          data: devices.map(dev => deviceAreaScores[dev][area] || 0),
+          backgroundColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`
+        }));
+        chartConfig = {
+          type: 'bar',
+          data: { labels: devices, datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              title: { display: true, text: 'デバイスごとのエリア別合計スコア' }
+            }
+          }
+        };
+      } else if (type === 'set_sum') {
+        // セット（タイムスタンプ）ごとの合計スコア
+        const labels = arr.map(e => e.timestamp);
+        const data = arr.map(e => Object.values(e.scores).reduce((a, b) => a + Number(b), 0));
+        chartConfig = {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'セット合計スコア',
+              data,
+              borderColor: 'blue',
+              backgroundColor: 'rgba(0,0,255,0.2)',
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: { display: true, text: 'セットごとの合計スコア推移' }
+            }
+          }
+        };
+      } else if (type === 'area_trend') {
+        // 各エリアのスコア推移（セットごと）
+        const areas = Array.from(new Set(arr.flatMap(e => Object.keys(e.scores))));
+        const labels = arr.map(e => e.timestamp);
+        const datasets = areas.map((area, idx) => ({
+          label: area,
+          data: arr.map(e => Number(e.scores[area] || 0)),
+          borderColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`,
+          backgroundColor: `hsla(${(idx * 60) % 360}, 70%, 60%, 0.2)`,
+          fill: false
+        }));
+        chartConfig = {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              title: { display: true, text: '各エリアのスコア推移' }
+            }
+          }
+        };
+      } else if (type === 'device_set_trend') {
+        // デバイスごとのセット合計スコア推移
+        const devices = Array.from(new Set(arr.map(e => e.device_id)));
+        const labels = arr.map(e => e.timestamp);
+        const datasets = devices.map((dev, idx) => ({
+          label: dev,
+          data: arr.map(e => e.device_id === dev ? Object.values(e.scores).reduce((a, b) => a + Number(b), 0) : null),
+          borderColor: `hsl(${(idx * 60) % 360}, 70%, 60%)`,
+          backgroundColor: `hsla(${(idx * 60) % 360}, 70%, 60%, 0.2)`,
+          fill: false
+        }));
+        chartConfig = {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              title: { display: true, text: 'デバイスごとのセット合計スコア推移' }
+            }
+          }
+        };
+      }
 
       if (chart) chart.destroy();
-      chart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: devices, datasets },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'top' },
-            title: { display: true, text: 'デバイスごとのエリア別合計スコア' }
-          }
-        }
-      });
+      chart = new Chart(ctx, chartConfig);
     }
+    // グラフ種類変更時に再描画
+    chartType.addEventListener('change', () => {
+      drawChart(scoreArr);
+    });
 
     initializeFromStorage();
   </script>
